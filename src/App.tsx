@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bulma/css/bulma.css';
 import '@fortawesome/fontawesome-free/css/all.css';
 
@@ -7,46 +7,53 @@ import { TodoList } from './components/TodoList';
 import { TodoFilter } from './components/TodoFilter';
 import { TodoModal } from './components/TodoModal';
 import { Loader } from './components/Loader';
-import { OptionType } from './types/OptionType';
 import { Todo } from './types/Todo';
-import { getTodos } from './api';
+import { getTodos, getUser } from './api';
+import { User } from './types/User';
+import { Filter } from './types/Options';
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [filteredTodos, setFilteredTodos] = useState<Todo[]>([]);
-  const [option, setOption] = useState<OptionType>('all');
-  const [listLoading, setListLoading] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
+  const [loadingTodo, setLoadingTodo] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(true);
+
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const [selectedOption, setSelectedOption] = useState<Filter>(Filter.all);
+  const [query, setQuery] = useState<string>('');
+
+  function handleSelectedOption(event: React.ChangeEvent<HTMLSelectElement>) {
+    setSelectedOption(event.target.value as Filter);
+  }
+
+  function handleQueryChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setQuery(event.target.value);
+  }
+
+  function showSelectedTodo(todo: Todo) {
+    setSelectedTodo(todo);
+
+    getUser(todo.userId)
+      .then(setSelectedUser)
+      .finally(() => setLoadingUser(false));
+  }
+
+  function closeSelectedTodo() {
+    setSelectedTodo(null);
+    setSelectedUser(null);
+  }
+
+  function resetFilterParams() {
+    setQuery('');
+    setSelectedOption(Filter.all);
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-      setListLoading(true);
-      const todosDb = await getTodos();
-
-      setTodos(todosDb);
-      setListLoading(false);
-    };
-
-    fetchData();
+    getTodos()
+      .then(setTodos)
+      .finally(() => setLoadingTodo(false));
   }, []);
-
-  useEffect(() => {
-    let filtered = todos;
-
-    switch (option) {
-      case 'active':
-        filtered = todos.filter(todo => !todo.completed);
-        break;
-      case 'completed':
-        filtered = todos.filter(todo => todo.completed);
-        break;
-      default:
-        filtered = todos;
-    }
-
-    setFilteredTodos(filtered);
-  }, [option, todos]);
 
   return (
     <>
@@ -57,29 +64,34 @@ export const App: React.FC = () => {
 
             <div className="block">
               <TodoFilter
-                setOption={setOption}
-                searchInput={searchInput}
-                setSearchInput={setSearchInput}
+                inputValue={query}
+                handleSelectedOption={handleSelectedOption}
+                handleQueryChange={handleQueryChange}
+                resetFilterParams={resetFilterParams}
               />
             </div>
 
             <div className="block">
-              {listLoading ? (
-                <Loader />
-              ) : (
-                <TodoList
-                  todos={filteredTodos}
-                  searchParams={searchInput}
-                  setSelectedTodo={setSelectedTodo}
-                  selectedTodo={selectedTodo}
-                />
-              )}
+              {loadingTodo && <Loader />}
+              <TodoList
+                todos={todos}
+                showSelectedTodo={showSelectedTodo}
+                selectedOption={selectedOption}
+                query={query}
+                selectedTodo={selectedTodo}
+              />
             </div>
           </div>
         </div>
       </div>
+
       {selectedTodo && (
-        <TodoModal todo={selectedTodo} setSelectedTodo={setSelectedTodo} />
+        <TodoModal
+          todo={selectedTodo}
+          closeTodo={closeSelectedTodo}
+          user={selectedUser}
+          loadingUser={loadingUser}
+        />
       )}
     </>
   );

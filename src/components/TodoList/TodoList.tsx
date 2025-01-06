@@ -1,34 +1,53 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Todo } from '../../types/Todo';
+import { Filter } from '../../types/Options';
 
-type Props = {
+interface Props {
   todos: Todo[];
-  searchParams: string;
-  setSelectedTodo: (todo: Todo | null) => void;
+  showSelectedTodo: (todo: Todo) => void;
+  selectedOption: Filter;
+  query: string;
   selectedTodo: Todo | null;
-};
+}
 
 export const TodoList: React.FC<Props> = ({
   todos,
-  searchParams,
-  setSelectedTodo,
+  showSelectedTodo,
+  selectedOption,
+  query,
   selectedTodo,
 }) => {
-  const [showTodos, setShowTodos] = useState(todos);
+  function filterList(
+    todosToFilter: Todo[],
+    option: Filter,
+    filterQuery: string,
+  ) {
+    let filteredTodos = todosToFilter;
 
-  useEffect(() => {
-    if (searchParams === '') {
-      setShowTodos(todos);
+    switch (option) {
+      case Filter.active:
+        filteredTodos = filteredTodos.filter(todo => !todo.completed);
+        break;
 
-      return;
-    } else {
-      setShowTodos(
-        todos.filter(todo =>
-          todo.title.toLowerCase().includes(searchParams.toLowerCase()),
-        ),
+      case Filter.completed:
+        filteredTodos = filteredTodos.filter(todo => todo.completed);
+        break;
+
+      case Filter.all:
+      default:
+        break;
+    }
+
+    if (filterQuery) {
+      filteredTodos = filteredTodos.filter(todo =>
+        todo.title.toLowerCase().includes(query.toLowerCase()),
       );
     }
-  }, [searchParams, todos]);
+
+    return filteredTodos;
+  }
+
+  const filteredList = filterList(todos, selectedOption, query);
 
   return (
     <table className="table is-narrow is-fullwidth">
@@ -46,8 +65,8 @@ export const TodoList: React.FC<Props> = ({
       </thead>
 
       <tbody>
-        {showTodos.map(todo => (
-          <tr key={todo.id} data-cy="todo" className="">
+        {filteredList?.map(todo => (
+          <tr data-cy="todo" className="" key={todo.id}>
             <td className="is-vcentered">{todo.id}</td>
             <td className="is-vcentered">
               {todo.completed && (
@@ -70,12 +89,12 @@ export const TodoList: React.FC<Props> = ({
                 data-cy="selectButton"
                 className="button"
                 type="button"
-                onClick={() => setSelectedTodo(todo)}
+                onClick={() => showSelectedTodo(todo)}
               >
                 <span className="icon">
                   <i
                     className={
-                      todo.id === selectedTodo?.id
+                      selectedTodo?.id === todo.id
                         ? 'far fa-eye-slash'
                         : 'far fa-eye'
                     }
